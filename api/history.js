@@ -1,5 +1,13 @@
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "https://marcoshioka.github.io");
+  const allowedOrigins = [
+    "https://marcoshioka.github.io",
+    "http://localhost:3000"
+  ];
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
+
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
@@ -17,22 +25,22 @@ export default async function handler(req, res) {
       }
     );
 
-    if (!ghRes.ok) {
-      const err = await ghRes.text();
-      return res.status(ghRes.status).json({ error: err });
-    }
-
     const data = await ghRes.json();
+
+    if (!ghRes.ok || !Array.isArray(data.workflow_runs)) {
+      return res.status(ghRes.status).json({ error: data });
+    }
 
     const runs = data.workflow_runs.map(run => ({
       id: run.id,
+      name: run.name,
       status: run.status,
       conclusion: run.conclusion,
       url: run.html_url,
       message: run.head_commit?.message || null,
     }));
 
-    return res.status(200).json({ runs });
+    return res.status(200).json({ success: true, runs });
 
   } catch (err) {
     return res.status(500).json({ error: err.message });
