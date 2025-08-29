@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Run CI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; padding: 24px; }
+    .btn { padding: 10px 16px; border-radius: 8px; background: #24292f; color: #fff; border: 0; cursor: pointer; }
+    .row { margin: 10px 0; }
+    input[type="text"] { width: 100%; max-width: 420px; padding: 8px; }
+    #status-box, #current-status-box { padding:10px; border:1px solid #ccc; border-radius:8px; margin-top:10px; }
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #ccc;
+      border-top: 2px solid #24292f;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    table { border-collapse: collapse; width: 100%; margin-top: 12px; cursor: pointer; }
+    table, th, td { border: 1px solid #ccc; }
+    th, td { padding: 6px 10px; text-align: left; }
+    tr.success { background-color: #d4edda; }
+    tr.failure { background-color: #f8d7da; }
+    tr.running { background-color: #fff3cd; }
+    tr.other   { background-color: #e2e3e5; }
+    tr:hover { background-color: #dbeafe; }
+    tr.highlight { outline: 2px solid #3b82f6; box-shadow: 0 0 8px #3b82f6; }
+  </style>
+</head>
+<body>
+  <h1>Run GitHub Workflow</h1>
+
+  <div class="row">
+    <label>Optional message to pass to the workflow:</label><br />
+    <input id="msg" type="text" placeholder="Hello from the page!" />
+  </div>
+
+  <div class="row">
+    <button id="run" class="btn">▶ Run Workflow</button>
+  </div>
+
+  <div class="row">
+    <h2>Current Workflow Status</h2>
+    <div id="current-status-box">No workflow triggered yet.</div>
+  </div>
+
+  <div class="row">
+    <h2>Latest Workflow Status</h2>
+    <div id="status-box">Click "Run Workflow" to update status...</div>
+  </div>
+
+  <div class="row">
+    <h2>Run History (click row to view details)</h2>
+    <table id="history-table">
+      <thead>
+        <tr>
+          <th>Run ID</th>
+          <th>Message</th>
+          <th>Status</th>
+          <th>Conclusion</th>
+          <th>Link</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script>
+    let currentRunId = null;
+
+    async function dispatch() {
+      const message = document.getElementById("msg").value || "Triggered from GitHub Pages";
+
+      try {
+        const r = await fetch("https://pages-test-sooty.vercel.app/api/trigger", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message })
+        });
+
+        const data = await r.json();
+
+        if (r.ok && data.id) {
+          currentRunId = data.id;
+          document.getElementById("current-status-box").innerHTML =
+            `<p><span class="spinner"></span> Workflow triggered! Tracking run #${currentRunId}</p>
+             <p><b>Message:</b> ${data.message || "(none)"}</p>`;
+          setTimeout(updateCurrentStatus, 3000);
+          setTimeout(updateHistoryFromServer, 5000);
+        } else {
+          document.getElementById("current-status-box").innerHTML =
+            `<p style="color:red;">❌ ${r.status}: ${data.error || "Unknown error"}</p>`;
+        }
+      } catch (err) {
+        document.getElementById("current-status-box").innerHTML =
+          `<p style="color:red;">⚠️ ${err.message}</p>`;
+      }
+    }
+
+    async function updateCurrentStatus() {
+      if (!currentRunId) return;
+
+      try {
+        const r = await fetch(`https://pages-test-sooty.vercel.app/api/run/${currentRunId}`);
+        const data = await r.json();
+        const box = document.getElementById("current-status-box");
+
+        if (r.ok) {
+          if (data.status === "queued" || data.status === "in_progress") {
+            box.innerHTML = `
+              <p><span class="spinner"></span><b>${data.name}</b></p>
+              <p><b>Message:</b> ${data.message || "(none)"}</p>
+              <p>Status: ${data.status}</p>
+              <p>Conclusion: pending</p>
+              <p><a href="${data.url}" target="_blank">🔗 View on GitHub</a></p>
+            `;
+            setTimeout(updateCurrentStatus, 5000);
+          } else {
+            const icon = data.conclusion === "success" ? "✅" : "❌";
+            box.innerHTML = `
+              <p>${icon} <b>${data.name}</b></p>
+              <p><b>Message:</b> ${data.message || "(none)"}</p>
+              <p>Status: ${data.status}</p>
+              <p>Conclusion: ${data.conclusion}</p>
+              <p><a href="${data.url}" target="_blank">🔗 View on GitHub</a></p>
+            `;
+            currentRunId = null;
+          }
+        } else {
+          box.innerHTML = `<p style="color:red;">Error: ${data.error}</p>`;
+        }
+      } catch (err) {
+        document.getElementById("current-status-box").innerHTML =
+          `<p style="color:red;">⚠️ ${err.message}</p>`;
+      }
+    }
+
+    async function updateLatestStatus() {
+      try {
+        const r = await fetch("https://pages-test-sooty.vercel.app/api/status");
+        const data = await r.json();
+        const box = document.getElementById("status-box");
+
+        if (r.ok && data.id) {
+          const icon = data.conclusion === "success" ? "✅" :
+                       data.conclusion === "failure" ? "❌" : "⏳";
+          box.innerHTML = `
+            <p>${icon} <b>${data.name}</b></p>
+            <p><b>Message:</b> ${data.message || "(none)"}</p>
+            <p>Status: ${data.status}</p>
+            <p>Conclusion: ${data.conclusion || "pending"}</p>
+            <p><a href="${data.url}" target="_blank">🔗 View on GitHub</a></p>
+          `;
+        } else {
+          box.innerHTML = `<p style="color:red;">Error: ${data.error}</p>`;
+        }
+      } catch (err) {
+        document.getElementById("status-box").innerHTML =
+          `<p style="color:red;">⚠️ ${err.message}</p>`;
+      }
+    }
+
+    async function updateHistoryFromServer() {
+      try {
+        const r = await fetch("https://pages-test-sooty.vercel.app/api/history");
+        const data = await r.json();
+        if (r.ok) renderHistory(data.runs);
+      } catch (err) {
+        console.error("History update failed:", err.message);
+      }
+    }
+
+    function renderHistory(runs) {
+      const tbody = document.querySelector("#history-table tbody");
+      tbody.innerHTML = runs.map(run => {
+        let cls = "other";
+        if (run.status === "in_progress" || run.status === "queued") cls = "running";
+        if (run.conclusion === "success") cls = "success";
+        if (run.conclusion === "failure") cls = "failure";
+        if (String(run.id) === String(currentRunId)) cls += " highlight";
+
+        return `
+          <tr class="${cls}" data-id="${run.id}">
+            <td>${run.id}</td>
+            <td>${run.message || "(none)"}</td>
+            <td>${run.status}</td>
+            <td>${run.conclusion || "pending"}</td>
+            <td><a href="${run.url}" target="_blank">🔗 View</a></td>
+          </tr>
+        `;
+      }).join("");
+
+      document.querySelectorAll("#history-table tbody tr").forEach(row => {
+        row.addEventListener("click", () => {
+          currentRunId = row.dataset.id;
+          updateCurrentStatus();
+        });
+      });
+    }
+
+    document.getElementById("run").addEventListener("click", dispatch);
+
+    // Auto-refresh
+    setInterval(() => {
+      if (currentRunId) updateCurrentStatus();
+      updateLatestStatus();
+      updateHistoryFromServer();
+    }, 15000);
+
+    // Initial load
+    updateLatestStatus();
+    updateHistoryFromServer();
+  </script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+# .github/workflows/trigger.yml
+name: Trigger Bridge
+
+on:
+  repository_dispatch:
+    types: [run-ci]
+
+jobs:
+  forward:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call main workflow
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.MY_PAT }}   # 👈 store your PAT in repo secrets
+          repository: marcoshioka/pages-test
+          event-type: run-main
+          client-payload: '{"message":"Triggered from GitHub Pages"}'
