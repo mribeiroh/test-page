@@ -1,6 +1,6 @@
 export default async function handler(req, res) {
   const allowedOrigins = [
-    "https://marcoshioka.github.io", // your GitHub Pages site
+    "https://mribeiroh.github.io", // your GitHub Pages site
     "http://localhost:3000"          // local dev testing
   ];
 

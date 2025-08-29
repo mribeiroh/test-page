@@ -1,6 +1,6 @@
 export default async function handler(req, res) {
   const allowedOrigins = [
-    "https://marcoshioka.github.io",
+    "https://mribeiroh.github.io",
     "http://localhost:3000"
   ];
   const origin = req.headers.origin;
