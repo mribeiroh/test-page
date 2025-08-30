@@ -81,7 +81,7 @@
       const env = document.getElementById("env").value;
 
       try {
-        const r = await fetch("https://pages-test-sooty.vercel.app/api/trigger", {
+        const r = await fetch("https://test-page-46f5.vercel.app/api/trigger", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ env })
@@ -109,7 +109,7 @@
     async function updateCurrentStatus() {
       if (!currentRunId) return;
       try {
-        const r = await fetch(`https://pages-test-sooty.vercel.app/api/run/${currentRunId}`);
+        const r = await fetch(`https://test-page-46f5.vercel.app/api/run/${currentRunId}`);
         const data = await r.json();
         const box = document.getElementById("current-status-box");
 
@@ -145,7 +145,7 @@
 
     async function updateLatestStatus() {
       try {
-        const r = await fetch("https://pages-test-sooty.vercel.app/api/status");
+        const r = await fetch("https://test-page-46f5.vercel.app/api/status");
         const data = await r.json();
         const box = document.getElementById("status-box");
 
@@ -170,7 +170,7 @@
 
     async function updateHistoryFromServer() {
       try {
-        const r = await fetch("https://pages-test-sooty.vercel.app/api/history");
+        const r = await fetch("https://test-page-46f5.vercel.app/api/history");
         const data = await r.json();
         if (r.ok) renderHistory(data.runs);
       } catch (err) {
