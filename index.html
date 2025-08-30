@@ -149,18 +149,23 @@
         const data = await r.json();
         const box = document.getElementById("status-box");
 
-        if (r.ok && data.id) {
-          // 👇 Skip updating if this is the same run as current
-          if (String(data.id) === String(currentRunId)) return;
+        if (r.ok && Array.isArray(data.runs)) {
+          // find the newest run that is not the current one
+          const latest = data.runs.find(run => String(run.id) !== String(currentRunId));
 
-          const icon = data.conclusion === "success" ? "✅" :
-                       data.conclusion === "failure" ? "❌" : "⏳";
+          if (!latest) {
+            box.innerHTML = `<p>No other runs found.</p>`;
+            return;
+          }
+
+          const icon = latest.conclusion === "success" ? "✅" :
+                       latest.conclusion === "failure" ? "❌" : "⏳";
           box.innerHTML = `
-            <p>${icon} <b>${data.name}</b></p>
-            <p><b>Environment:</b> ${data.env || "unknown"}</p>
-            <p>Status: ${data.status}</p>
-            <p>Conclusion: ${data.conclusion || "pending"}</p>
-            <p><a href="${data.url}" target="_blank">🔗 View on GitHub</a></p>
+            <p>${icon} <b>${latest.name}</b></p>
+            <p><b>Env:</b> ${latest.env || "unknown"}</p>
+            <p>Status: ${latest.status}</p>
+            <p>Conclusion: ${latest.conclusion || "pending"}</p>
+            <p><a href="${latest.url}" target="_blank">🔗 View on GitHub</a></p>
           `;
         } else {
           box.innerHTML = `<p style="color:red;">Error: ${data.error}</p>`;

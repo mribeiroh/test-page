@@ -1,7 +1,7 @@
 export default async function handler(req, res) {
   const allowedOrigins = [
-    "https://mribeiroh.github.io", // GitHub Pages
-    "http://localhost:3000"        // local dev
+    "https://mribeiroh.github.io",
+    "http://localhost:3000"
   ];
   const origin = req.headers.origin;
   if (allowedOrigins.includes(origin)) {
@@ -16,7 +16,7 @@ export default async function handler(req, res) {
 
   try {
     const ghRes = await fetch(
-      "https://api.github.com/repos/daiichisankyo-polaris/polaris-qa-automation/actions/runs?branch=main&per_page=1",
+      "https://api.github.com/repos/daiichisankyo-polaris/polaris-qa-automation/actions/runs?branch=main&per_page=5",
       {
         headers: {
           "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`,
@@ -31,20 +31,16 @@ export default async function handler(req, res) {
       return res.status(ghRes.status).json({ error: data });
     }
 
-    const run = data.workflow_runs[0];
-    if (!run) {
-      return res.status(404).json({ error: "No workflow runs found" });
-    }
-
-    return res.status(200).json({
+    const runs = data.workflow_runs.map(run => ({
       id: run.id,
       name: run.name,
       status: run.status,
       conclusion: run.conclusion,
       url: run.html_url,
-      // try to infer env from workflow name
       env: run.name?.toLowerCase().includes("qa") ? "qa" : "dev"
-    });
+    }));
+
+    return res.status(200).json({ runs });
 
   } catch (err) {
     return res.status(500).json({ error: err.message });
