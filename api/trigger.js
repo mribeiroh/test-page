@@ -1,7 +1,7 @@
 export default async function handler(req, res) {
   const allowedOrigins = [
-    "https://mribeiroh.github.io", // GitHub Pages
-    "http://localhost:3000"        // local dev
+    "https://mribeiroh.github.io",
+    "http://localhost:3000"
   ];
   const origin = req.headers.origin;
   if (allowedOrigins.includes(origin)) {
@@ -16,7 +16,7 @@ export default async function handler(req, res) {
 
   const { env = "dev" } = req.body || {};
 
-  // Map env selection to correct workflow file
+  // Map env → correct workflow file
   const workflowFile = env === "qa" ? "qa.yml" : "dev.yml";
 
   try {
@@ -30,10 +30,7 @@ export default async function handler(req, res) {
           "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          ref: "main",
-          inputs: { env }   // 👈 send only env
-        })
+        body: JSON.stringify({ ref: "main" }) // 👈 no inputs
       }
     );
 
@@ -42,10 +39,10 @@ export default async function handler(req, res) {
       return res.status(dispatch.status).json({ error: err });
     }
 
-    // 2. Wait for GitHub to register the run
+    // 2. Wait for GitHub to register run
     await new Promise(r => setTimeout(r, 3000));
 
-    // 3. Fetch latest runs
+    // 3. Get latest runs
     const runs = await fetch(
       "https://api.github.com/repos/daiichisankyo-polaris/polaris-qa-automation/actions/runs?branch=main&per_page=3",
       {
