@@ -1,7 +1,7 @@
 export default async function handler(req, res) {
   const allowedOrigins = [
-    "https://mribeiroh.github.io",
-    "http://localhost:3000"
+    "https://mribeiroh.github.io", // GitHub Pages
+    "http://localhost:3000"        // local dev
   ];
   const origin = req.headers.origin;
   if (allowedOrigins.includes(origin)) {
@@ -14,9 +14,9 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const { message = "Triggered from GitHub Pages", env = "dev" } = req.body || {};
+  const { env = "dev" } = req.body || {};
 
-  // 👇 map env selection to correct workflow file
+  // Map env selection to correct workflow file
   const workflowFile = env === "qa" ? "qa.yml" : "dev.yml";
 
   try {
@@ -32,7 +32,7 @@ export default async function handler(req, res) {
         },
         body: JSON.stringify({
           ref: "main",
-          inputs: { message }
+          inputs: { env }   // 👈 send only env
         })
       }
     );
@@ -45,7 +45,7 @@ export default async function handler(req, res) {
     // 2. Wait for GitHub to register the run
     await new Promise(r => setTimeout(r, 3000));
 
-    // 3. Get recent runs (optional: filter by workflowFile)
+    // 3. Fetch latest runs
     const runs = await fetch(
       "https://api.github.com/repos/daiichisankyo-polaris/polaris-qa-automation/actions/runs?branch=main&per_page=3",
       {
@@ -61,7 +61,7 @@ export default async function handler(req, res) {
       return res.status(runs.status).json({ error: data });
     }
 
-    const run = data.workflow_runs.find(r => r.name.toLowerCase().includes(env)) || data.workflow_runs[0];
+    const run = data.workflow_runs[0];
 
     return res.status(200).json({
       success: true,
@@ -70,7 +70,6 @@ export default async function handler(req, res) {
       status: run?.status || "unknown",
       conclusion: run?.conclusion || "pending",
       url: run?.html_url,
-      message,
       env
     });
 
