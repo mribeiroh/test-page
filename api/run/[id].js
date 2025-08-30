@@ -18,7 +18,7 @@ export default async function handler(req, res) {
 
   try {
     const ghRes = await fetch(
-      `https://api.github.com/repos/marcoshioka/pages-test/actions/runs/${id}`,
+      `https://api.github.com/repos/daiichisankyo-polaris/polaris-qa-automation/actions/runs/${id}`,
       {
         headers: {
           "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`,
@@ -39,7 +39,7 @@ export default async function handler(req, res) {
       status: data.status,
       conclusion: data.conclusion,
       url: data.html_url,
-      message: data.head_commit?.message || null,
+      env: data.name?.toLowerCase().includes("qa") ? "qa" : "dev"
     });
 
   } catch (err) {

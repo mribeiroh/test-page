@@ -14,12 +14,15 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const { message = "Triggered from GitHub Pages" } = req.body || {};
+  const { message = "Triggered from GitHub Pages", env = "dev" } = req.body || {};
+
+  // 👇 map env selection to correct workflow file
+  const workflowFile = env === "qa" ? "qa.yml" : "dev.yml";
 
   try {
-    // 1. Trigger workflow
+    // 1. Trigger correct workflow
     const dispatch = await fetch(
-      "https://api.github.com/repos/marcoshioka/pages-test/actions/workflows/node.js.yml/dispatches",
+      `https://api.github.com/repos/daiichisankyo-polaris/polaris-qa-automation/actions/workflows/${workflowFile}/dispatches`,
       {
         method: "POST",
         headers: {
@@ -27,7 +30,10 @@ export default async function handler(req, res) {
           "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ ref: "main", inputs: { message } })
+        body: JSON.stringify({
+          ref: "main",
+          inputs: { message }
+        })
       }
     );
 
@@ -36,12 +42,12 @@ export default async function handler(req, res) {
       return res.status(dispatch.status).json({ error: err });
     }
 
-    // 2. Wait for GitHub to register run
+    // 2. Wait for GitHub to register the run
     await new Promise(r => setTimeout(r, 3000));
 
-    // 3. Fetch recent runs
+    // 3. Get recent runs (optional: filter by workflowFile)
     const runs = await fetch(
-      "https://api.github.com/repos/marcoshioka/pages-test/actions/workflows/node.js.yml/runs?branch=main&per_page=3",
+      "https://api.github.com/repos/daiichisankyo-polaris/polaris-qa-automation/actions/runs?branch=main&per_page=3",
       {
         headers: {
           "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`,
@@ -49,13 +55,13 @@ export default async function handler(req, res) {
         }
       }
     );
-    const data = await runs.json();
 
+    const data = await runs.json();
     if (!runs.ok || !Array.isArray(data.workflow_runs)) {
       return res.status(runs.status).json({ error: data });
     }
 
-    const run = data.workflow_runs[0]; // newest first
+    const run = data.workflow_runs.find(r => r.name.toLowerCase().includes(env)) || data.workflow_runs[0];
 
     return res.status(200).json({
       success: true,
@@ -64,8 +70,10 @@ export default async function handler(req, res) {
       status: run?.status || "unknown",
       conclusion: run?.conclusion || "pending",
       url: run?.html_url,
-      message
+      message,
+      env
     });
+
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }

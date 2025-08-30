@@ -16,7 +16,7 @@ export default async function handler(req, res) {
 
   try {
     const ghRes = await fetch(
-      "https://api.github.com/repos/marcoshioka/pages-test/actions/workflows/node.js.yml/runs?branch=main&per_page=10",
+      "https://api.github.com/repos/daiichisankyo-polaris/polaris-qa-automation/actions/runs?branch=main&per_page=10",
       {
         headers: {
           "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`,
@@ -37,7 +37,7 @@ export default async function handler(req, res) {
       status: run.status,
       conclusion: run.conclusion,
       url: run.html_url,
-      message: run.head_commit?.message || null,
+      env: run.name?.toLowerCase().includes("qa") ? "qa" : "dev"
     }));
 
     return res.status(200).json({ success: true, runs });

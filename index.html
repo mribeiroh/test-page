@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Run CI</title>
+  <title>Run Polaris Test Automation</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; padding: 24px; }
     .btn { padding: 10px 16px; border-radius: 8px; background: #24292f; color: #fff; border: 0; cursor: pointer; }
     .row { margin: 10px 0; }
-    input[type="text"] { width: 100%; max-width: 420px; padding: 8px; }
+    select { width: 100%; max-width: 420px; padding: 8px; }
     #status-box, #current-status-box { padding:10px; border:1px solid #ccc; border-radius:8px; margin-top:10px; }
     .spinner {
       display: inline-block;
@@ -34,11 +34,14 @@
   </style>
 </head>
 <body>
-  <h1>Run GitHub Workflow</h1>
+  <h1>Run Polaris Test Automation</h1>
 
   <div class="row">
-    <label>Optional message to pass to the workflow:</label><br />
-    <input id="msg" type="text" placeholder="Hello from the page!" />
+    <label>Select environment:</label><br />
+    <select id="env">
+      <option value="dev">Development</option>
+      <option value="qa">QA</option>
+    </select>
   </div>
 
   <div class="row">
@@ -61,7 +64,7 @@
       <thead>
         <tr>
           <th>Run ID</th>
-          <th>Message</th>
+          <th>Env</th>
           <th>Status</th>
           <th>Conclusion</th>
           <th>Link</th>
@@ -75,13 +78,13 @@
     let currentRunId = null;
 
     async function dispatch() {
-      const message = document.getElementById("msg").value || "Triggered from GitHub Pages";
+      const env = document.getElementById("env").value;
 
       try {
-        const r = await fetch("https://test-page-46f5.vercel.app/api/trigger", {
+        const r = await fetch("https://pages-test-sooty.vercel.app/api/trigger", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message })
+          body: JSON.stringify({ env })
         });
 
         const data = await r.json();
@@ -90,7 +93,7 @@
           currentRunId = data.id;
           document.getElementById("current-status-box").innerHTML =
             `<p><span class="spinner"></span> Workflow triggered! Tracking run #${currentRunId}</p>
-             <p><b>Message:</b> ${data.message || "(none)"}</p>`;
+             <p><b>Environment:</b> ${data.env || "unknown"}</p>`;
           setTimeout(updateCurrentStatus, 3000);
           setTimeout(updateHistoryFromServer, 5000);
         } else {
@@ -105,9 +108,8 @@
 
     async function updateCurrentStatus() {
       if (!currentRunId) return;
-
       try {
-        const r = await fetch(`https://test-page-46f5.vercel.app/api/run/${currentRunId}`);
+        const r = await fetch(`https://pages-test-sooty.vercel.app/api/run/${currentRunId}`);
         const data = await r.json();
         const box = document.getElementById("current-status-box");
 
@@ -115,7 +117,7 @@
           if (data.status === "queued" || data.status === "in_progress") {
             box.innerHTML = `
               <p><span class="spinner"></span><b>${data.name}</b></p>
-              <p><b>Message:</b> ${data.message || "(none)"}</p>
+              <p><b>Environment:</b> ${data.env || "unknown"}</p>
               <p>Status: ${data.status}</p>
               <p>Conclusion: pending</p>
               <p><a href="${data.url}" target="_blank">🔗 View on GitHub</a></p>
@@ -125,7 +127,7 @@
             const icon = data.conclusion === "success" ? "✅" : "❌";
             box.innerHTML = `
               <p>${icon} <b>${data.name}</b></p>
-              <p><b>Message:</b> ${data.message || "(none)"}</p>
+              <p><b>Environment:</b> ${data.env || "unknown"}</p>
               <p>Status: ${data.status}</p>
               <p>Conclusion: ${data.conclusion}</p>
               <p><a href="${data.url}" target="_blank">🔗 View on GitHub</a></p>
@@ -143,7 +145,7 @@
 
     async function updateLatestStatus() {
       try {
-        const r = await fetch("https://test-page-46f5.vercel.app/api/status");
+        const r = await fetch("https://pages-test-sooty.vercel.app/api/status");
         const data = await r.json();
         const box = document.getElementById("status-box");
 
@@ -152,7 +154,7 @@
                        data.conclusion === "failure" ? "❌" : "⏳";
           box.innerHTML = `
             <p>${icon} <b>${data.name}</b></p>
-            <p><b>Message:</b> ${data.message || "(none)"}</p>
+            <p><b>Environment:</b> ${data.env || "unknown"}</p>
             <p>Status: ${data.status}</p>
             <p>Conclusion: ${data.conclusion || "pending"}</p>
             <p><a href="${data.url}" target="_blank">🔗 View on GitHub</a></p>
@@ -168,7 +170,7 @@
 
     async function updateHistoryFromServer() {
       try {
-        const r = await fetch("https://test-page-46f5.vercel.app/api/history");
+        const r = await fetch("https://pages-test-sooty.vercel.app/api/history");
         const data = await r.json();
         if (r.ok) renderHistory(data.runs);
       } catch (err) {
@@ -188,7 +190,7 @@
         return `
           <tr class="${cls}" data-id="${run.id}">
             <td>${run.id}</td>
-            <td>${run.message || "(none)"}</td>
+            <td>${run.env || "unknown"}</td>
             <td>${run.status}</td>
             <td>${run.conclusion || "pending"}</td>
             <td><a href="${run.url}" target="_blank">🔗 View</a></td>
