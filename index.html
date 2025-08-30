@@ -49,7 +49,7 @@
   </div>
 
   <div class="row">
-    <h2>Current Workflow Status</h2>
+    <h2>Workflow Status</h2>
     <div id="current-status-box">No workflow triggered yet.</div>
   </div>
 
@@ -87,8 +87,7 @@
         if (r.ok && data.id) {
           currentRunId = data.id;
           document.getElementById("current-status-box").innerHTML =
-            `<p><span class="spinner"></span> Workflow triggered! Tracking run #${currentRunId}</p>
-             <p><b>Environment:</b> ${data.env || "unknown"}</p>`;
+            `<p><span class="spinner"></span> Triggering workflow...</p>`;
           setTimeout(updateCurrentStatus, 3000);
           setTimeout(updateHistoryFromServer, 5000);
         } else {
@@ -109,24 +108,21 @@
         const box = document.getElementById("current-status-box");
 
         if (r.ok) {
+          const icon = data.status === "in_progress" ? "⏳" :
+                       data.conclusion === "success" ? "✅" :
+                       data.conclusion === "failure" ? "❌" : "ℹ️";
+
+          box.innerHTML = `
+            <p>${icon} <b>${data.name}</b></p>
+            <p><b>Environment:</b> ${data.env || "unknown"}</p>
+            <p><b>Status:</b> ${data.status}</p>
+            <p><b>Conclusion:</b> ${data.conclusion || "pending"}</p>
+            <p><a href="${data.url}" target="_blank">🔗 View on GitHub</a></p>
+          `;
+
           if (data.status === "queued" || data.status === "in_progress") {
-            box.innerHTML = `
-              <p><span class="spinner"></span><b>${data.name}</b></p>
-              <p><b>Environment:</b> ${data.env || "unknown"}</p>
-              <p>Status: ${data.status}</p>
-              <p>Conclusion: pending</p>
-              <p><a href="${data.url}" target="_blank">🔗 View on GitHub</a></p>
-            `;
             setTimeout(updateCurrentStatus, 5000);
           } else {
-            const icon = data.conclusion === "success" ? "✅" : "❌";
-            box.innerHTML = `
-              <p>${icon} <b>${data.name}</b></p>
-              <p><b>Environment:</b> ${data.env || "unknown"}</p>
-              <p>Status: ${data.status}</p>
-              <p>Conclusion: ${data.conclusion}</p>
-              <p><a href="${data.url}" target="_blank">🔗 View on GitHub</a></p>
-            `;
             currentRunId = null;
           }
         } else {

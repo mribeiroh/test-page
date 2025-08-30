@@ -6,7 +6,6 @@ A lightweight **GitHub Pages + Vercel integration** to trigger and monitor **Git
 - Trigger **GitHub Actions workflows** directly from a webpage.
 - Select environment (**DEV** or **QA**) before running tests.
 - Track the **Current Workflow Status** (the one you triggered).
-- Display the **Latest Workflow Status** (the most recent run that is not your current one).
 - View **Run History** with clickable links to GitHub.
 - Auto-refreshes every 15s for live updates.
 
