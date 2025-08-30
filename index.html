@@ -9,7 +9,7 @@
     .btn { padding: 10px 16px; border-radius: 8px; background: #24292f; color: #fff; border: 0; cursor: pointer; }
     .row { margin: 10px 0; }
     select { width: 100%; max-width: 420px; padding: 8px; }
-    #status-box, #current-status-box { padding:10px; border:1px solid #ccc; border-radius:8px; margin-top:10px; }
+    #current-status-box { padding:10px; border:1px solid #ccc; border-radius:8px; margin-top:10px; }
     .spinner {
       display: inline-block;
       width: 16px;
@@ -51,11 +51,6 @@
   <div class="row">
     <h2>Current Workflow Status</h2>
     <div id="current-status-box">No workflow triggered yet.</div>
-  </div>
-
-  <div class="row">
-    <h2>Latest Workflow Status</h2>
-    <div id="status-box">Click "Run Workflow" to update status...</div>
   </div>
 
   <div class="row">
@@ -143,39 +138,6 @@
       }
     }
 
-    async function updateLatestStatus() {
-      try {
-        const r = await fetch("https://test-page-46f5.vercel.app/api/status");
-        const data = await r.json();
-        const box = document.getElementById("status-box");
-
-        if (r.ok && Array.isArray(data.runs)) {
-          // find the newest run that is not the current one
-          const latest = data.runs.find(run => String(run.id) !== String(currentRunId));
-
-          if (!latest) {
-            box.innerHTML = `<p>No other runs found.</p>`;
-            return;
-          }
-
-          const icon = latest.conclusion === "success" ? "✅" :
-                       latest.conclusion === "failure" ? "❌" : "⏳";
-          box.innerHTML = `
-            <p>${icon} <b>${latest.name}</b></p>
-            <p><b>Env:</b> ${latest.env || "unknown"}</p>
-            <p>Status: ${latest.status}</p>
-            <p>Conclusion: ${latest.conclusion || "pending"}</p>
-            <p><a href="${latest.url}" target="_blank">🔗 View on GitHub</a></p>
-          `;
-        } else {
-          box.innerHTML = `<p style="color:red;">Error: ${data.error}</p>`;
-        }
-      } catch (err) {
-        document.getElementById("status-box").innerHTML =
-          `<p style="color:red;">⚠️ ${err.message}</p>`;
-      }
-    }
-
     async function updateHistoryFromServer() {
       try {
         const r = await fetch("https://test-page-46f5.vercel.app/api/history");
@@ -219,12 +181,10 @@
     // Auto-refresh
     setInterval(() => {
       if (currentRunId) updateCurrentStatus();
-      updateLatestStatus();
       updateHistoryFromServer();
     }, 15000);
 
     // Initial load
-    updateLatestStatus();
     updateHistoryFromServer();
   </script>
 </body>
