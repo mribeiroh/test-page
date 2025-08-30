@@ -150,6 +150,9 @@
         const box = document.getElementById("status-box");
 
         if (r.ok && data.id) {
+          // 👇 Skip updating if this is the same run as current
+          if (String(data.id) === String(currentRunId)) return;
+
           const icon = data.conclusion === "success" ? "✅" :
                        data.conclusion === "failure" ? "❌" : "⏳";
           box.innerHTML = `
