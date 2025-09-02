@@ -19,7 +19,7 @@
     tr.other   { background-color: #e2e3e5; }
     tr:hover { background-color: #dbeafe; }
     tr.highlight { outline: 2px solid #3b82f6; box-shadow: 0 0 8px #3b82f6; }
-    #charts { display: flex; gap: 20px; margin-top: 20px; justify-content: center; }
+    #charts { display: flex; gap: 20px; margin-top: 20px; justify-content: center; flex-wrap: wrap; }
     .chart-box { width: 250px; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -53,7 +53,8 @@
           <th>Env</th>
           <th>Status</th>
           <th>Conclusion</th>
-          <th>Link</th>
+          <th>GitHub</th>
+          <th>Cypress</th>
         </tr>
       </thead>
       <tbody></tbody>
@@ -125,7 +126,10 @@
             <p><b>Environment:</b> ${data.env || "unknown"}</p>
             <p><b>Status:</b> ${data.status}</p>
             <p><b>Conclusion:</b> ${data.conclusion || "pending"}</p>
-            <p><a href="${data.url}" target="_blank">🔗 View on GitHub</a></p>
+            <p>
+              <a href="${data.url}" target="_blank">🔗 GitHub</a>
+              ${data.cypressUrl ? ` | <a href="${data.cypressUrl}" target="_blank">🔗 Cypress</a>` : ""}
+            </p>
           `;
 
           if (data.status === "queued" || data.status === "in_progress") {
@@ -171,7 +175,8 @@
             <td>${run.env || "unknown"}</td>
             <td>${run.status}</td>
             <td>${run.conclusion || "pending"}</td>
-            <td><a href="${run.url}" target="_blank">🔗 View</a></td>
+            <td><a href="${run.url}" target="_blank">🔗 GitHub</a></td>
+            <td>${run.cypressUrl ? `<a href="${run.cypressUrl}" target="_blank">🔗 Cypress</a>` : "—"}</td>
           </tr>
         `;
       }).join("");
@@ -211,6 +216,23 @@
       if (devChart) devChart.destroy();
       if (qaChart) qaChart.destroy();
 
+      const chartOptions = {
+        responsive: true,
+        plugins: {
+          legend: { position: "bottom" },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                const value = context.raw;
+                const percent = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                return `${context.label}: ${value} (${percent}%)`;
+              }
+            }
+          }
+        }
+      };
+
       devChart = new Chart(devCtx, {
         type: "pie",
         data: {
@@ -220,7 +242,7 @@
             backgroundColor: ["#28a745", "#dc3545", "#6c757d", "#ffc107"]
           }]
         },
-        options: { responsive: true, plugins: { legend: { position: "bottom" } } }
+        options: chartOptions
       });
 
       qaChart = new Chart(qaCtx, {
@@ -232,7 +254,7 @@
             backgroundColor: ["#28a745", "#dc3545", "#6c757d", "#ffc107"]
           }]
         },
-        options: { responsive: true, plugins: { legend: { position: "bottom" } } }
+        options: chartOptions
       });
     }
 
