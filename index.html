@@ -95,7 +95,7 @@
         if (r.ok && data.id) {
           currentRunId = data.id;
           document.getElementById("current-status-box").innerHTML =
-            `<p>⏳ <b>Triggering workflow...</b></p>`;
+            `<p>⏳ <b>Triggering workflow for ${env.toUpperCase()}...</b></p>`;
           setTimeout(updateCurrentStatus, 3000);
           setTimeout(updateHistoryFromServer, 5000);
         } else {
@@ -116,6 +116,15 @@
         const box = document.getElementById("current-status-box");
 
         if (r.ok) {
+          if (data.status === "queued") {
+            box.innerHTML = `
+              <p>⏳ <b>Waiting for workflow to start...</b></p>
+              <p><b>Environment:</b> ${data.env || "unknown"}</p>
+            `;
+            setTimeout(updateCurrentStatus, 4000);
+            return;
+          }
+
           const icon = data.status === "in_progress" ? "⏳" :
                        data.conclusion === "success" ? "✅" :
                        data.conclusion === "failure" ? "❌" :
@@ -128,11 +137,13 @@
             <p><b>Conclusion:</b> ${data.conclusion || "pending"}</p>
             <p>
               <a href="${data.url}" target="_blank">🔗 GitHub</a>
-              ${data.cypressUrl ? ` | <a href="${data.cypressUrl}" target="_blank">🔗 Cypress</a>` : ""}
+              ${data.cypressUrl 
+                ? ` | <a href="${data.cypressUrl}" target="_blank">🔗 Cypress</a>` 
+                : " | (waiting for Cypress link…)"}
             </p>
           `;
 
-          if (data.status === "queued" || data.status === "in_progress") {
+          if (data.status === "in_progress") {
             setTimeout(updateCurrentStatus, 5000);
           } else {
             currentRunId = null;
@@ -176,7 +187,11 @@
             <td>${run.status}</td>
             <td>${run.conclusion || "pending"}</td>
             <td><a href="${run.url}" target="_blank">🔗 GitHub</a></td>
-            <td>${run.cypressUrl ? `<a href="${run.cypressUrl}" target="_blank">🔗 Cypress</a>` : "—"}</td>
+            <td>
+              ${run.cypressUrl 
+                ? `<a href="${run.cypressUrl}" target="_blank">🔗 Cypress</a>` 
+                : "(waiting for Cypress link…)"}
+            </td>
           </tr>
         `;
       }).join("");

@@ -17,7 +17,7 @@ export default async function handler(req, res) {
   const { id } = req.query;
 
   try {
-    // 1. GitHub run details
+    // 1. Get run metadata from GitHub
     const ghRes = await fetch(
       `https://api.github.com/repos/daiichisankyo-polaris/polaris-qa-automation/actions/runs/${id}`,
       {
@@ -32,9 +32,10 @@ export default async function handler(req, res) {
       const err = await ghRes.text();
       return res.status(ghRes.status).json({ error: err });
     }
+
     const ghData = await ghRes.json();
 
-    // 2. Scrape Cypress Cloud link from logs
+    // 2. Try to fetch logs and extract Cypress Cloud URL
     let cypressUrl = null;
     try {
       const logsRes = await fetch(
@@ -56,18 +57,18 @@ export default async function handler(req, res) {
         }
       }
     } catch (err) {
-      console.warn("⚠️ Failed to scrape Cypress link:", err.message);
+      console.warn(`⚠️ Failed to fetch logs for run ${id}:`, err.message);
     }
 
-    // 3. Response
+    // 3. Return merged data
     return res.status(200).json({
       id: ghData.id,
       name: ghData.name,
-      status: ghData.status,
-      conclusion: ghData.conclusion,
-      url: ghData.html_url,       // GitHub run link
-      cypressUrl,                 // Cypress Cloud run link (if found)
-      env: ghData.head_commit?.message?.includes("qa") ? "qa" : "dev",
+      status: ghData.status,                   // queued, in_progress, completed
+      conclusion: ghData.conclusion || "pending",
+      url: ghData.html_url,                    // GitHub run
+      cypressUrl,                              // Cypress Cloud link (from logs)
+      env: ghData.name?.toLowerCase().includes("qa") ? "qa" : "dev",
       message: ghData.head_commit?.message || null
     });
   } catch (err) {
