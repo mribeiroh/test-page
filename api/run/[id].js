@@ -17,29 +17,48 @@ export default async function handler(req, res) {
   const { id } = req.query;
 
   try {
+    // 1. GitHub run by ID
     const ghRes = await fetch(
       `https://api.github.com/repos/daiichisankyo-polaris/polaris-qa-automation/actions/runs/${id}`,
       {
         headers: {
-          "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`,
-          "Accept": "application/vnd.github+json"
+          Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+          Accept: "application/vnd.github+json"
         }
       }
     );
 
-    const data = await ghRes.json();
-
     if (!ghRes.ok) {
-      return res.status(ghRes.status).json({ error: data });
+      const err = await ghRes.text();
+      return res.status(ghRes.status).json({ error: err });
     }
+    const ghData = await ghRes.json();
 
+    // 2. Cypress Cloud runs by commit SHA
+    const sha = ghData.head_sha;
+    const ccRes = await fetch(
+      `https://api.cypress.io/projects/${process.env.CYPRESS_PROJECT_ID}/runs?limit=10`,
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.CYPRESS_RECORD_KEY}`,
+          Accept: "application/json"
+        }
+      }
+    );
+
+    const ccData = ccRes.ok ? await ccRes.json() : { runs: [] };
+    const cloudRun = ccData.runs?.find(r => r.commit?.sha === sha);
+
+    // 3. Response with merged data
     return res.status(200).json({
-      id: data.id,
-      name: data.name,
-      status: data.status,
-      conclusion: data.conclusion,
-      url: data.html_url,
-      env: data.name?.toLowerCase().includes("qa") ? "qa" : "dev"
+      id: ghData.id,
+      name: ghData.name,
+      status: ghData.status,
+      conclusion: ghData.conclusion,
+      url: ghData.html_url,             // GitHub link
+      cypressUrl: cloudRun?.url || null, // Cypress Cloud link
+      env: ghData.head_commit?.message?.toLowerCase().includes("qa") ? "qa" : "dev",
+      message: ghData.head_commit?.message || null
     });
 
   } catch (err) {

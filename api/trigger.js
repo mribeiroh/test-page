@@ -30,7 +30,7 @@ export default async function handler(req, res) {
           "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ ref: "main" }) // 👈 no inputs
+        body: JSON.stringify({ ref: "main" })
       }
     );
 
@@ -42,7 +42,7 @@ export default async function handler(req, res) {
     // 2. Wait for GitHub to register run
     await new Promise(r => setTimeout(r, 3000));
 
-    // 3. Get latest runs
+    // 3. Get latest run from GitHub
     const runs = await fetch(
       "https://api.github.com/repos/daiichisankyo-polaris/polaris-qa-automation/actions/runs?branch=main&per_page=3",
       {
@@ -59,14 +59,42 @@ export default async function handler(req, res) {
     }
 
     const run = data.workflow_runs[0];
+    const sha = run?.head_sha;
 
+    // 4. Try to fetch Cypress Cloud run by commit SHA
+    let cypressUrl = null;
+    if (sha) {
+      try {
+        const ccRes = await fetch(
+          `https://api.cypress.io/projects/${process.env.CYPRESS_PROJECT_ID}/runs?limit=5`,
+          {
+            headers: {
+              "Authorization": `Bearer ${process.env.CYPRESS_RECORD_KEY}`,
+              "Accept": "application/json"
+            }
+          }
+        );
+        if (ccRes.ok) {
+          const ccData = await ccRes.json();
+          const cloudRun = ccData.runs?.find(r => r.commit?.sha === sha);
+          if (cloudRun) {
+            cypressUrl = cloudRun.url;
+          }
+        }
+      } catch (err) {
+        console.warn("⚠️ Failed to fetch Cypress Cloud run:", err.message);
+      }
+    }
+
+    // 5. Return merged info
     return res.status(200).json({
       success: true,
       id: run?.id,
       name: run?.name,
       status: run?.status || "unknown",
       conclusion: run?.conclusion || "pending",
-      url: run?.html_url,
+      url: run?.html_url,        // GitHub link
+      cypressUrl,                // Cypress Cloud link (if found)
       env
     });
 
