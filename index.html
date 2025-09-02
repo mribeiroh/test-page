@@ -110,12 +110,13 @@
 
     async function updateCurrentStatus() {
       if (!currentRunId) return;
+
       try {
         const r = await fetch(`https://test-page-46f5.vercel.app/api/run/${currentRunId}`);
         const data = await r.json();
         const box = document.getElementById("current-status-box");
 
-        if (r.ok && data.id) {
+        if (r.ok && data.id && String(data.id) === String(currentRunId)) {
           const icon = data.status === "in_progress" ? "⏳" :
                        data.conclusion === "success" ? "✅" :
                        data.conclusion === "failure" ? "❌" :
@@ -137,8 +138,6 @@
           if (data.status === "queued" || data.status === "in_progress") {
             setTimeout(updateCurrentStatus, 5000);
           }
-        } else {
-          box.innerHTML = `<p style="color:red;">Error: ${data.error}</p>`;
         }
       } catch (err) {
         document.getElementById("current-status-box").innerHTML =
@@ -266,7 +265,7 @@
 
     // Auto-refresh
     setInterval(() => {
-      if (currentRunId) updateCurrentStatus();
+      if (currentRunId) updateCurrentStatus(); // only track the selected run
       updateHistoryFromServer();
     }, 15000);
 

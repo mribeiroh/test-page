@@ -15,12 +15,10 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   const { env = "dev" } = req.body || {};
-
-  // Map env → correct workflow file
   const workflowFile = env === "qa" ? "qa.yml" : "dev.yml";
 
   try {
-    // 1. Trigger correct workflow
+    // 1. Trigger workflow_dispatch
     const dispatch = await fetch(
       `https://api.github.com/repos/daiichisankyo-polaris/polaris-qa-automation/actions/workflows/${workflowFile}/dispatches`,
       {
@@ -42,9 +40,9 @@ export default async function handler(req, res) {
     // 2. Wait for GitHub to register run
     await new Promise(r => setTimeout(r, 3000));
 
-    // 3. Get latest runs and filter by workflow name (env)
-    const runs = await fetch(
-      "https://api.github.com/repos/daiichisankyo-polaris/polaris-qa-automation/actions/runs?branch=main&per_page=10",
+    // 3. Get the latest workflow_dispatch runs only
+    const runsRes = await fetch(
+      "https://api.github.com/repos/daiichisankyo-polaris/polaris-qa-automation/actions/runs?branch=main&event=workflow_dispatch&per_page=10",
       {
         headers: {
           "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`,
@@ -53,15 +51,15 @@ export default async function handler(req, res) {
       }
     );
 
-    const data = await runs.json();
-    if (!runs.ok || !Array.isArray(data.workflow_runs)) {
-      return res.status(runs.status).json({ error: data });
+    const data = await runsRes.json();
+    if (!runsRes.ok || !Array.isArray(data.workflow_runs)) {
+      return res.status(runsRes.status).json({ error: data });
     }
 
-    // Pick the most recent run for the selected env (qa.yml or dev.yml)
-    const run = data.workflow_runs
-      .filter(r => r.name?.toLowerCase().includes(env))
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+    // ✅ Always pick the most recent *workflow_dispatch* run that matches the env workflow
+    const run = data.workflow_runs.find(r =>
+      r.name?.toLowerCase().includes(env)
+    );
 
     if (!run) {
       return res.status(404).json({ error: `No ${env} run found` });
@@ -74,7 +72,7 @@ export default async function handler(req, res) {
     if (sha) {
       try {
         const ccRes = await fetch(
-          `https://api.cypress.io/projects/${process.env.CYPRESS_PROJECT_ID}/runs?limit=5`,
+          `https://api.cypress.io/projects/${process.env.CYPRESS_PROJECT_ID}/runs?limit=10`,
           {
             headers: {
               "Authorization": `Bearer ${process.env.CYPRESS_RECORD_KEY}`,
@@ -94,15 +92,15 @@ export default async function handler(req, res) {
       }
     }
 
-    // 5. Return merged info
+    // 5. Return exact run details
     return res.status(200).json({
       success: true,
       id: run.id,
       name: run.name,
       status: run.status || "unknown",
       conclusion: run.conclusion || "pending",
-      url: run.html_url,        // GitHub link
-      cypressUrl,               // Cypress Cloud link (if found)
+      url: run.html_url,
+      cypressUrl,
       env
     });
 
