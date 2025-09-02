@@ -93,7 +93,7 @@
         const data = await r.json();
 
         if (r.ok && data.id) {
-          currentRunId = data.id;
+          currentRunId = String(data.id);
           document.getElementById("current-status-box").innerHTML =
             `<p>⏳ <b>Triggering workflow for ${env.toUpperCase()}…</b></p>`;
           setTimeout(updateCurrentStatus, 3000);
@@ -115,7 +115,7 @@
         const data = await r.json();
         const box = document.getElementById("current-status-box");
 
-        if (r.ok) {
+        if (r.ok && data.id) {
           const icon = data.status === "in_progress" ? "⏳" :
                        data.conclusion === "success" ? "✅" :
                        data.conclusion === "failure" ? "❌" :
@@ -130,14 +130,12 @@
               <a href="${data.url}" target="_blank">🔗 GitHub</a>
               ${data.cypressUrl 
                 ? ` | <a href="${data.cypressUrl}" target="_blank">🔗 Cypress</a>` 
-                : ""}
+                : " | —"}
             </p>
           `;
 
           if (data.status === "queued" || data.status === "in_progress") {
             setTimeout(updateCurrentStatus, 5000);
-          } else {
-            currentRunId = null;
           }
         } else {
           box.innerHTML = `<p style="color:red;">Error: ${data.error}</p>`;
