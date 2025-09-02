@@ -42,9 +42,9 @@ export default async function handler(req, res) {
     // 2. Wait for GitHub to register run
     await new Promise(r => setTimeout(r, 3000));
 
-    // 3. Get latest run from GitHub
+    // 3. Get latest runs and filter by workflow name (env)
     const runs = await fetch(
-      "https://api.github.com/repos/daiichisankyo-polaris/polaris-qa-automation/actions/runs?branch=main&per_page=3",
+      "https://api.github.com/repos/daiichisankyo-polaris/polaris-qa-automation/actions/runs?branch=main&per_page=10",
       {
         headers: {
           "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`,
@@ -58,8 +58,16 @@ export default async function handler(req, res) {
       return res.status(runs.status).json({ error: data });
     }
 
-    const run = data.workflow_runs[0];
-    const sha = run?.head_sha;
+    // Pick the most recent run for the selected env (qa.yml or dev.yml)
+    const run = data.workflow_runs
+      .filter(r => r.name?.toLowerCase().includes(env))
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+
+    if (!run) {
+      return res.status(404).json({ error: `No ${env} run found` });
+    }
+
+    const sha = run.head_sha;
 
     // 4. Try to fetch Cypress Cloud run by commit SHA
     let cypressUrl = null;
@@ -89,12 +97,12 @@ export default async function handler(req, res) {
     // 5. Return merged info
     return res.status(200).json({
       success: true,
-      id: run?.id,
-      name: run?.name,
-      status: run?.status || "unknown",
-      conclusion: run?.conclusion || "pending",
-      url: run?.html_url,        // GitHub link
-      cypressUrl,                // Cypress Cloud link (if found)
+      id: run.id,
+      name: run.name,
+      status: run.status || "unknown",
+      conclusion: run.conclusion || "pending",
+      url: run.html_url,        // GitHub link
+      cypressUrl,               // Cypress Cloud link (if found)
       env
     });
 
