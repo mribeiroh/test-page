@@ -113,23 +113,11 @@
       const box = document.getElementById("current-status-box");
 
       try {
-        // 1. Get latest history
-        const hr = await fetch("https://test-page-46f5.vercel.app/api/history");
-        const historyData = await hr.json();
-        let run = null;
-        if (hr.ok && Array.isArray(historyData.runs)) {
-          run = historyData.runs.find(r => String(r.id) === String(currentRunId));
-        }
+        // Always fetch directly by run id
+        const rr = await fetch(`https://test-page-46f5.vercel.app/api/run/${currentRunId}`);
+        const run = await rr.json();
 
-        // 2. If not found in history, fallback to /api/run/:id
-        if (!run) {
-          const rr = await fetch(`https://test-page-46f5.vercel.app/api/run/${currentRunId}`);
-          const rd = await rr.json();
-          if (rr.ok) run = rd;
-        }
-
-        // 3. Render UI
-        if (run) {
+        if (rr.ok && run.id) {
           const icon = run.status === "in_progress" ? "⏳" :
                        run.conclusion === "success" ? "✅" :
                        run.conclusion === "failure" ? "❌" :
