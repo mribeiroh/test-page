@@ -36,39 +36,67 @@ export default async function handler(req, res) {
     }
 
     const ghData = await ghRes.json();
-
-    // 2. Try to fetch logs ZIP and extract Cypress Cloud URL
+    const sha = ghData.head_sha;
     let cypressUrl = null;
-    try {
-      const logsRes = await fetch(
-        `https://api.github.com/repos/daiichisankyo-polaris/polaris-qa-automation/actions/runs/${id}/logs`,
-        {
-          headers: {
-            Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
-            Accept: "application/vnd.github+json"
+
+    // 2a. Try Cypress Cloud API lookup by commit SHA
+    if (sha) {
+      try {
+        const ccRes = await fetch(
+          `https://api.cypress.io/projects/${process.env.CYPRESS_PROJECT_ID}/runs?limit=20`,
+          {
+            headers: {
+              Authorization: `Bearer ${process.env.CYPRESS_RECORD_KEY}`,
+              Accept: "application/json"
+            }
+          }
+        );
+
+        if (ccRes.ok) {
+          const ccData = await ccRes.json();
+          const cloudRun = ccData.runs?.find(r => r.commit?.sha === sha);
+          if (cloudRun) {
+            cypressUrl = cloudRun.url;
           }
         }
-      );
+      } catch (err) {
+        console.warn(`⚠️ Failed Cypress API lookup for run ${id}:`, err.message);
+      }
+    }
 
-      if (logsRes.ok) {
-        const buffer = await logsRes.arrayBuffer();
-        const zip = await JSZip.loadAsync(buffer);
+    // 2b. Fallback: scrape logs if Cypress API didn’t match
+    if (!cypressUrl) {
+      try {
+        const logsRes = await fetch(
+          `https://api.github.com/repos/daiichisankyo-polaris/polaris-qa-automation/actions/runs/${id}/logs`,
+          {
+            headers: {
+              Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+              Accept: "application/vnd.github+json"
+            }
+          }
+        );
 
-        for (const fileName of Object.keys(zip.files)) {
-          const file = zip.files[fileName];
-          if (!file.dir) {
-            const content = await file.async("string");
-            const regex = /(https:\/\/cloud\.cypress\.io\/projects\/[a-z0-9]+\/runs\/\d+)/;
-            const match = regex.exec(content);
-            if (match) {
-              cypressUrl = match[1];
-              break;
+        if (logsRes.ok) {
+          const buffer = await logsRes.arrayBuffer();
+          const zip = await JSZip.loadAsync(buffer);
+
+          for (const fileName of Object.keys(zip.files)) {
+            const file = zip.files[fileName];
+            if (!file.dir) {
+              const content = await file.async("string");
+              const regex = /(https:\/\/cloud\.cypress\.io\/projects\/[a-z0-9]+\/runs\/\d+)/;
+              const match = regex.exec(content);
+              if (match) {
+                cypressUrl = match[1];
+                break;
+              }
             }
           }
         }
+      } catch (err) {
+        console.warn(`⚠️ Failed to parse logs for run ${id}:`, err.message);
       }
-    } catch (err) {
-      console.warn(`⚠️ Failed to parse logs for run ${id}:`, err.message);
     }
 
     // 3. Return merged data
@@ -78,7 +106,7 @@ export default async function handler(req, res) {
       status: ghData.status,                   // queued, in_progress, completed
       conclusion: ghData.conclusion || "pending",
       url: ghData.html_url,                    // GitHub run link
-      cypressUrl,                              // Cypress Cloud link (if found in logs)
+      cypressUrl,                              // Cypress Cloud link
       env: ghData.name?.toLowerCase().includes("qa") ? "qa" : "dev",
       message: ghData.head_commit?.message || null
     });
