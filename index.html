@@ -10,18 +10,6 @@
     .row { margin: 10px 0; }
     select { width: 100%; max-width: 420px; padding: 8px; }
     #current-status-box { padding:10px; border:1px solid #ccc; border-radius:8px; margin-top:10px; }
-    .spinner {
-      display: inline-block;
-      width: 16px;
-      height: 16px;
-      border: 2px solid #ccc;
-      border-top: 2px solid #24292f;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      vertical-align: middle;
-      margin-right: 6px;
-    }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     table { border-collapse: collapse; width: 100%; margin-top: 12px; cursor: pointer; }
     table, th, td { border: 1px solid #ccc; }
     th, td { padding: 6px 10px; text-align: left; }
@@ -31,7 +19,10 @@
     tr.other   { background-color: #e2e3e5; }
     tr:hover { background-color: #dbeafe; }
     tr.highlight { outline: 2px solid #3b82f6; box-shadow: 0 0 8px #3b82f6; }
+    #charts { display: flex; gap: 40px; margin-top: 20px; flex-wrap: wrap; }
+    .chart-box { flex: 1; min-width: 300px; }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <h1>Run Polaris Test Automation</h1>
@@ -53,6 +44,17 @@
     <div id="current-status-box">No workflow triggered yet.</div>
   </div>
 
+  <div class="row" id="charts">
+    <div class="chart-box">
+      <h2>DEV Run Results</h2>
+      <canvas id="devChart"></canvas>
+    </div>
+    <div class="chart-box">
+      <h2>QA Run Results</h2>
+      <canvas id="qaChart"></canvas>
+    </div>
+  </div>
+
   <div class="row">
     <h2>Run History (click row to view details)</h2>
     <table id="history-table">
@@ -71,6 +73,8 @@
 
   <script>
     let currentRunId = null;
+    let devChart = null;
+    let qaChart = null;
 
     async function dispatch() {
       const env = document.getElementById("env").value;
@@ -87,7 +91,7 @@
         if (r.ok && data.id) {
           currentRunId = data.id;
           document.getElementById("current-status-box").innerHTML =
-            `<p><span class="spinner"></span> Triggering workflow...</p>`;
+            `<p>⏳ <b>Triggering workflow...</b></p>`;
           setTimeout(updateCurrentStatus, 3000);
           setTimeout(updateHistoryFromServer, 5000);
         } else {
@@ -110,7 +114,8 @@
         if (r.ok) {
           const icon = data.status === "in_progress" ? "⏳" :
                        data.conclusion === "success" ? "✅" :
-                       data.conclusion === "failure" ? "❌" : "ℹ️";
+                       data.conclusion === "failure" ? "❌" :
+                       data.conclusion === "cancelled" ? "⚠️" : "ℹ️";
 
           box.innerHTML = `
             <p>${icon} <b>${data.name}</b></p>
@@ -138,7 +143,10 @@
       try {
         const r = await fetch("https://test-page-46f5.vercel.app/api/history");
         const data = await r.json();
-        if (r.ok) renderHistory(data.runs);
+        if (r.ok) {
+          renderHistory(data.runs);
+          updateCharts(data.runs);
+        }
       } catch (err) {
         console.error("History update failed:", err.message);
       }
@@ -151,6 +159,7 @@
         if (run.status === "in_progress" || run.status === "queued") cls = "running";
         if (run.conclusion === "success") cls = "success";
         if (run.conclusion === "failure") cls = "failure";
+        if (run.conclusion === "cancelled") cls = "other";
         if (String(run.id) === String(currentRunId)) cls += " highlight";
 
         return `
@@ -169,6 +178,58 @@
           currentRunId = row.dataset.id;
           updateCurrentStatus();
         });
+      });
+    }
+
+    function updateCharts(runs) {
+      const counts = {
+        dev: { success: 0, failure: 0, cancelled: 0, running: 0 },
+        qa: { success: 0, failure: 0, cancelled: 0, running: 0 }
+      };
+
+      runs.forEach(run => {
+        const env = run.env || "unknown";
+        if (!counts[env]) return;
+
+        if (run.status === "in_progress" || run.status === "queued") {
+          counts[env].running++;
+        } else if (run.conclusion === "success") {
+          counts[env].success++;
+        } else if (run.conclusion === "failure") {
+          counts[env].failure++;
+        } else if (run.conclusion === "cancelled") {
+          counts[env].cancelled++;
+        }
+      });
+
+      const devCtx = document.getElementById("devChart").getContext("2d");
+      const qaCtx = document.getElementById("qaChart").getContext("2d");
+
+      if (devChart) devChart.destroy();
+      if (qaChart) qaChart.destroy();
+
+      devChart = new Chart(devCtx, {
+        type: "pie",
+        data: {
+          labels: ["Success", "Failure", "Cancelled", "Running"],
+          datasets: [{
+            data: [counts.dev.success, counts.dev.failure, counts.dev.cancelled, counts.dev.running],
+            backgroundColor: ["#28a745", "#dc3545", "#6c757d", "#ffc107"]
+          }]
+        },
+        options: { responsive: true, plugins: { legend: { position: "bottom" } } }
+      });
+
+      qaChart = new Chart(qaCtx, {
+        type: "pie",
+        data: {
+          labels: ["Success", "Failure", "Cancelled", "Running"],
+          datasets: [{
+            data: [counts.qa.success, counts.qa.failure, counts.qa.cancelled, counts.qa.running],
+            backgroundColor: ["#28a745", "#dc3545", "#6c757d", "#ffc107"]
+          }]
+        },
+        options: { responsive: true, plugins: { legend: { position: "bottom" } } }
       });
     }
 
