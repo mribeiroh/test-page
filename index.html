@@ -116,15 +116,6 @@
         const box = document.getElementById("current-status-box");
 
         if (r.ok) {
-          // If GitHub hasn’t populated this run yet
-          if (!data || !data.status) {
-            box.innerHTML = `
-              <p>⏳ <b>Waiting for GitHub to register run #${currentRunId}…</b></p>
-            `;
-            setTimeout(updateCurrentStatus, 4000);
-            return;
-          }
-
           const icon = data.status === "in_progress" ? "⏳" :
                        data.conclusion === "success" ? "✅" :
                        data.conclusion === "failure" ? "❌" :
@@ -139,7 +130,7 @@
               <a href="${data.url}" target="_blank">🔗 GitHub</a>
               ${data.cypressUrl 
                 ? ` | <a href="${data.cypressUrl}" target="_blank">🔗 Cypress</a>` 
-                : " | Waiting"}
+                : ""}
             </p>
           `;
 
@@ -190,7 +181,7 @@
             <td>
               ${run.cypressUrl 
                 ? `<a href="${run.cypressUrl}" target="_blank">🔗 Cypress</a>` 
-                : "Waiting"}
+                : "—"}
             </td>
           </tr>
         `;
