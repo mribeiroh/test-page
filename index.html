@@ -18,7 +18,7 @@
     tr.running { background-color: #fff3cd; }
     tr.other   { background-color: #e2e3e5; }
     tr:hover { background-color: #dbeafe; }
-    tr.highlight { outline: 2px solid #3b82f6; box-shadow: 0 0 8px #3b82f6; }
+    tr.tracked { outline: 2px solid #3b82f6; box-shadow: 0 0 8px #3b82f6; }
     #charts { display: flex; gap: 20px; margin-top: 20px; justify-content: center; flex-wrap: wrap; }
     .chart-box { width: 250px; }
   </style>
@@ -113,7 +113,6 @@
       const box = document.getElementById("current-status-box");
 
       try {
-        // Always fetch directly by run id
         const rr = await fetch(`https://test-page-46f5.vercel.app/api/run/${currentRunId}`);
         const run = await rr.json();
 
@@ -138,9 +137,8 @@
 
           if (run.status === "queued" || run.status === "in_progress") {
             setTimeout(updateCurrentStatus, 5000);
-          } else {
-            currentRunId = null;
           }
+          // 🛑 Do not clear currentRunId when finished
         } else {
           box.innerHTML = `<p style="color:red;">⚠️ Run ${currentRunId} not found.</p>`;
         }
@@ -170,7 +168,7 @@
         if (run.conclusion === "success") cls = "success";
         if (run.conclusion === "failure") cls = "failure";
         if (run.conclusion === "cancelled") cls = "other";
-        if (String(run.id) === String(currentRunId)) cls += " highlight";
+        if (String(run.id) === String(currentRunId)) cls += " tracked";
 
         return `
           <tr class="${cls}" data-id="${run.id}">
@@ -188,6 +186,7 @@
         `;
       }).join("");
 
+      // Click row → manually track that run
       document.querySelectorAll("#history-table tbody tr").forEach(row => {
         row.addEventListener("click", () => {
           currentRunId = row.dataset.id;
