@@ -110,38 +110,54 @@
 
     async function updateCurrentStatus() {
       if (!currentRunId) return;
+      const box = document.getElementById("current-status-box");
 
       try {
-        const r = await fetch(`https://test-page-46f5.vercel.app/api/run/${currentRunId}`);
-        const data = await r.json();
-        const box = document.getElementById("current-status-box");
+        // 1. Get latest history
+        const hr = await fetch("https://test-page-46f5.vercel.app/api/history");
+        const historyData = await hr.json();
+        let run = null;
+        if (hr.ok && Array.isArray(historyData.runs)) {
+          run = historyData.runs.find(r => String(r.id) === String(currentRunId));
+        }
 
-        if (r.ok && data.id && String(data.id) === String(currentRunId)) {
-          const icon = data.status === "in_progress" ? "⏳" :
-                       data.conclusion === "success" ? "✅" :
-                       data.conclusion === "failure" ? "❌" :
-                       data.conclusion === "cancelled" ? "⚠️" : "ℹ️";
+        // 2. If not found in history, fallback to /api/run/:id
+        if (!run) {
+          const rr = await fetch(`https://test-page-46f5.vercel.app/api/run/${currentRunId}`);
+          const rd = await rr.json();
+          if (rr.ok) run = rd;
+        }
+
+        // 3. Render UI
+        if (run) {
+          const icon = run.status === "in_progress" ? "⏳" :
+                       run.conclusion === "success" ? "✅" :
+                       run.conclusion === "failure" ? "❌" :
+                       run.conclusion === "cancelled" ? "⚠️" : "ℹ️";
 
           box.innerHTML = `
-            <p>${icon} <b>${data.name || "Run " + currentRunId}</b></p>
-            <p><b>Environment:</b> ${data.env || "unknown"}</p>
-            <p><b>Status:</b> ${data.status}</p>
-            <p><b>Conclusion:</b> ${data.conclusion || "pending"}</p>
+            <p>${icon} <b>${run.name || "Run " + currentRunId}</b></p>
+            <p><b>Environment:</b> ${run.env || "unknown"}</p>
+            <p><b>Status:</b> ${run.status}</p>
+            <p><b>Conclusion:</b> ${run.conclusion || "pending"}</p>
             <p>
-              <a href="${data.url}" target="_blank">🔗 GitHub</a>
-              ${data.cypressUrl 
-                ? ` | <a href="${data.cypressUrl}" target="_blank">🔗 Cypress</a>` 
+              <a href="${run.url}" target="_blank">🔗 GitHub</a>
+              ${run.cypressUrl 
+                ? ` | <a href="${run.cypressUrl}" target="_blank">🔗 Cypress</a>` 
                 : " | —"}
             </p>
           `;
 
-          if (data.status === "queued" || data.status === "in_progress") {
+          if (run.status === "queued" || run.status === "in_progress") {
             setTimeout(updateCurrentStatus, 5000);
+          } else {
+            currentRunId = null;
           }
+        } else {
+          box.innerHTML = `<p style="color:red;">⚠️ Run ${currentRunId} not found.</p>`;
         }
       } catch (err) {
-        document.getElementById("current-status-box").innerHTML =
-          `<p style="color:red;">⚠️ ${err.message}</p>`;
+        box.innerHTML = `<p style="color:red;">⚠️ ${err.message}</p>`;
       }
     }
 
@@ -265,7 +281,7 @@
 
     // Auto-refresh
     setInterval(() => {
-      if (currentRunId) updateCurrentStatus(); // only track the selected run
+      if (currentRunId) updateCurrentStatus();
       updateHistoryFromServer();
     }, 15000);
 
