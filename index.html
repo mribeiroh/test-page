@@ -19,8 +19,8 @@
     tr.other   { background-color: #e2e3e5; }
     tr:hover { background-color: #dbeafe; }
     tr.highlight { outline: 2px solid #3b82f6; box-shadow: 0 0 8px #3b82f6; }
-    #charts { display: flex; gap: 40px; margin-top: 20px; flex-wrap: wrap; }
-    .chart-box { flex: 1; min-width: 300px; }
+    #charts { display: flex; gap: 20px; margin-top: 20px; justify-content: center; }
+    .chart-box { width: 250px; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -44,17 +44,6 @@
     <div id="current-status-box">No workflow triggered yet.</div>
   </div>
 
-  <div class="row" id="charts">
-    <div class="chart-box">
-      <h2>DEV Run Results</h2>
-      <canvas id="devChart"></canvas>
-    </div>
-    <div class="chart-box">
-      <h2>QA Run Results</h2>
-      <canvas id="qaChart"></canvas>
-    </div>
-  </div>
-
   <div class="row">
     <h2>Run History (click row to view details)</h2>
     <table id="history-table">
@@ -69,6 +58,20 @@
       </thead>
       <tbody></tbody>
     </table>
+  </div>
+
+  <div class="row">
+    <h2>Run Results Summary</h2>
+    <div id="charts">
+      <div class="chart-box">
+        <h3>DEV</h3>
+        <canvas id="devChart"></canvas>
+      </div>
+      <div class="chart-box">
+        <h3>QA</h3>
+        <canvas id="qaChart"></canvas>
+      </div>
+    </div>
   </div>
 
   <script>
