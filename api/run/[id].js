@@ -1,3 +1,5 @@
+import JSZip from "jszip";
+
 export default async function handler(req, res) {
   const allowedOrigins = [
     "https://mribeiroh.github.io",
@@ -35,7 +37,7 @@ export default async function handler(req, res) {
 
     const ghData = await ghRes.json();
 
-    // 2. Try to fetch logs and extract Cypress Cloud URL
+    // 2. Try to fetch logs ZIP and extract Cypress Cloud URL
     let cypressUrl = null;
     try {
       const logsRes = await fetch(
@@ -49,15 +51,24 @@ export default async function handler(req, res) {
       );
 
       if (logsRes.ok) {
-        const logsText = await logsRes.text();
-        const regex = /(https:\/\/cloud\.cypress\.io\/projects\/[a-z0-9]+\/runs\/\d+)/;
-        const match = regex.exec(logsText);
-        if (match) {
-          cypressUrl = match[1];
+        const buffer = await logsRes.arrayBuffer();
+        const zip = await JSZip.loadAsync(buffer);
+
+        for (const fileName of Object.keys(zip.files)) {
+          const file = zip.files[fileName];
+          if (!file.dir) {
+            const content = await file.async("string");
+            const regex = /(https:\/\/cloud\.cypress\.io\/projects\/[a-z0-9]+\/runs\/\d+)/;
+            const match = regex.exec(content);
+            if (match) {
+              cypressUrl = match[1];
+              break;
+            }
+          }
         }
       }
     } catch (err) {
-      console.warn(`⚠️ Failed to fetch logs for run ${id}:`, err.message);
+      console.warn(`⚠️ Failed to parse logs for run ${id}:`, err.message);
     }
 
     // 3. Return merged data
@@ -66,8 +77,8 @@ export default async function handler(req, res) {
       name: ghData.name,
       status: ghData.status,                   // queued, in_progress, completed
       conclusion: ghData.conclusion || "pending",
-      url: ghData.html_url,                    // GitHub run
-      cypressUrl,                              // Cypress Cloud link (from logs)
+      url: ghData.html_url,                    // GitHub run link
+      cypressUrl,                              // Cypress Cloud link (if found in logs)
       env: ghData.name?.toLowerCase().includes("qa") ? "qa" : "dev",
       message: ghData.head_commit?.message || null
     });
