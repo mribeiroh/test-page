@@ -18,7 +18,7 @@
     }
 
     header {
-      background: #1976d2;
+      background: #00B4ED;
       color: white;
       display: flex;
       align-items: center;
@@ -47,7 +47,7 @@
     }
 
     .btn {
-      background: #1976d2;
+      background: #00B4ED;
       color: #fff;
       border: none;
       border-radius: 8px;
@@ -88,19 +88,6 @@
       margin-top: 12px;
     }
 
-    .spinner {
-      display: inline-block;
-      width: 16px;
-      height: 16px;
-      border: 2px solid #ccc;
-      border-top: 2px solid #1976d2;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      vertical-align: middle;
-      margin-right: 6px;
-    }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
     table {
       border-collapse: collapse;
       width: 100%;
@@ -120,11 +107,9 @@
     tr.failure { background: #fdecea; }
     tr.running { background: #fff8e1; }
     tr.other   { background: #f9fafb; }
-    tr.highlight { outline: 2px solid #1976d2; }
+    tr.highlight { outline: 2px solid #00B4ED; }
 
-    input[type="text"] {
-      width: 100%;
-      max-width: 420px;
+    select {
       padding: 8px;
       border-radius: 8px;
       border: 1px solid #ccc;
@@ -173,25 +158,25 @@
 <body>
   <header>
     <span class="material-icons">build</span>
-    <h1>Run GitHub Workflow</h1>
+    <h1>Polaris Test Automation - Run Github Pipelines</h1>
   </header>
 
   <main>
     <div>
-      <label>Optional message to pass to the workflow:</label><br />
-      <input id="msg" type="text" placeholder="Hello from the page!" />
+      <label for="env">Select Environment:</label><br />
+      <select id="env">
+        <option value="dev">DEV</option>
+        <option value="qa">QA</option>
+      </select>
     </div>
 
     <div style="margin-top:12px;">
       <button id="run" class="btn">▶ Run Workflow</button>
     </div>
 
-    <h2>Current Workflow Status</h2>
-    <div id="current-status-box" class="card">No workflow triggered yet.</div>
-
-    <h2>Latest Workflow Status</h2>
+    <h2>Triggered Workflow Status</h2>
     <div class="status-layout">
-      <div id="status-box" class="card">Click "Run Workflow" to update status...</div>
+      <div id="status-box" class="card">Click "Run Workflow" to start a run...</div>
       <div id="charts-box" class="card">
         <div class="chart-container">
           <h3>DEV</h3>
@@ -226,7 +211,7 @@
     let qaChart = null;
 
     async function dispatch() {
-      const env = document.getElementById("env")?.value || "dev";
+      const env = document.getElementById("env").value; 
       const runBtn = document.getElementById("run");
 
       runBtn.classList.add("loading");
@@ -243,16 +228,16 @@
 
         if (r.ok && data.id) {
           currentRunId = String(data.id);
-          document.getElementById("current-status-box").innerHTML =
-            `<p>⏳ <b>Triggering workflow for ${env.toUpperCase()}…</b></p>`;
-          setTimeout(updateCurrentStatus, 3000);
+          document.getElementById("status-box").innerHTML =
+            `<p>⏳ <b>Triggering workflow for ${env.toUpperCase()} (using ${env}.yml)…</b></p>`;
+          setTimeout(updateStatusBox, 3000);
           setTimeout(updateHistoryFromServer, 5000);
         } else {
-          document.getElementById("current-status-box").innerHTML =
+          document.getElementById("status-box").innerHTML =
             `<p style="color:red;">❌ ${r.status}: ${data.error || "Unknown error"}</p>`;
         }
       } catch (err) {
-        document.getElementById("current-status-box").innerHTML =
+        document.getElementById("status-box").innerHTML =
           `<p style="color:red;">⚠️ ${err.message}</p>`;
       } finally {
         runBtn.classList.remove("loading");
@@ -260,9 +245,9 @@
       }
     }
 
-    async function updateCurrentStatus() {
+    async function updateStatusBox() {
       if (!currentRunId) return;
-      const box = document.getElementById("current-status-box");
+      const box = document.getElementById("status-box");
 
       try {
         const rr = await fetch(`https://test-page-46f5.vercel.app/api/run/${currentRunId}`);
@@ -288,7 +273,7 @@
           `;
 
           if (run.status === "queued" || run.status === "in_progress") {
-            setTimeout(updateCurrentStatus, 5000);
+            setTimeout(updateStatusBox, 5000);
           }
         } else {
           box.innerHTML = `<p style="color:red;">⚠️ Run ${currentRunId} not found.</p>`;
@@ -340,7 +325,7 @@
       document.querySelectorAll("#history-table tbody tr").forEach(row => {
         row.addEventListener("click", () => {
           currentRunId = row.dataset.id;
-          updateCurrentStatus();
+          updateStatusBox();
         });
       });
     }
@@ -417,7 +402,7 @@
     document.getElementById("run").addEventListener("click", dispatch);
 
     setInterval(() => {
-      if (currentRunId) updateCurrentStatus();
+      if (currentRunId) updateStatusBox();
       updateHistoryFromServer();
     }, 15000);
 
